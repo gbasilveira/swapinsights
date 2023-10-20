@@ -1,0 +1,66 @@
+version: '3'
+services:
+  nginx:
+    image: nginx:latest
+    ports:
+      - "8080:80"
+    networks:
+      - mynetwork
+    depends_on:
+      - api
+      - frontend
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+
+  api:
+    image: node:latest
+    volumes:
+      - ./api:/app
+    environment:
+      - PGHOST=${PGHOST}
+      - PGPORT=${PGPORT}
+      - PGDATABASE=${PGDATABASE}
+      - PGUSER=${PGUSER}
+      - PGPASSWORD=${PGPASSWORD}
+      - PGURL=postgresql://${PGUSER}:${PGPASSWORD}@${PGHOST}:${PGPORT}/${PGDATABASE}
+    depends_on:
+      - db
+    networks:
+      - mynetwork
+    command: >
+      sh -c "cd /app; if [ '${ENV}' = 'prod' ]; then
+                npm start;
+              else
+                npm run dev;
+              fi"
+
+  frontend:
+    image: node:latest
+    volumes:
+      - ./frontend:/app
+    networks:
+      - mynetwork
+    stdin_open: true
+    environment:
+      - CI=true
+    tty: true 
+    user: "node:node"
+    command: 'sh -c "cd /app; npm start"'
+
+
+      
+
+  db:
+    image: postgres:latest
+    volumes:
+      - ./db:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=${PGDATABASE}
+      - POSTGRES_USER=${PGUSER}
+      - POSTGRES_PASSWORD=${PGPASSWORD}
+    networks:
+      - mynetwork
+
+networks:
+  mynetwork:
+    driver: bridge
